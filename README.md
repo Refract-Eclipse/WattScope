@@ -1,5 +1,7 @@
 # 瓦特计 WattScope 1.1.3
 
+**简体中文** | [English](README.en.md)
+
 [![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-3DDC84)](app/build.gradle)
 [![Version 1.1.3](https://img.shields.io/badge/version-1.1.3-blue)](CHANGELOG.md)
 [![License MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
