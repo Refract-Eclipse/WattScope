@@ -1,0 +1,18 @@
+.gradle/
+.idea/
+local.properties
+build/
+app/build/
+*.jks
+*.keystore
+.toolchain/
+
+# Local credentials and editor/system files
+.env
+.env.*
+*.p12
+*.pfx
+*.pem
+*.iml
+.DS_Store
+Thumbs.db
