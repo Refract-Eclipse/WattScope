@@ -6,7 +6,7 @@
 
 Android 原生电池功率监测应用，支持主界面、常驻通知和可拖动的跨应用悬浮窗。最低 Android 8.0（API 26），编译及目标 API 36。不依赖 Google 服务，不需要 Root，也不申请联网、无障碍或文件管理权限。
 
-这是 Android 工程，监测与计算均在手机本地完成，无需部署后端服务。工程使用 Java 和 Android 原生界面；iOS 工程不在本仓库中。
+这是 Android 工程，监测与计算均在手机本地完成，无需部署后端服务。工程使用 Java 和 Android 原生界面。
 
 [更新记录](CHANGELOG.md) · [贡献与测试](CONTRIBUTING.md) · [隐私说明](PRIVACY.md) · [验证记录](VERIFICATION.md) · [第三方许可](THIRD_PARTY_NOTICES.md)
 
