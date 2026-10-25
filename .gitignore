@@ -16,3 +16,7 @@ app/build/
 *.iml
 .DS_Store
 Thumbs.db
+
+# Private signing archives must never be published
+*private-signing-backup*
+*signing-backup*.zip

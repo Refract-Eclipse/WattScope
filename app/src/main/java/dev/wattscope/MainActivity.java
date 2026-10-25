@@ -58,6 +58,10 @@ public final class MainActivity extends Activity {
     private PowerChart chart;
     private boolean rendering, overlayPending, startPending;
     private PowerSample renderedSample;
+    private boolean backgroundIntroPending, requestBackgroundOnStart;
+    private BackgroundGuideDialog backgroundGuide;
+    private boolean backgroundGuideOpen;
+    private TextView backgroundStatus;
 
     private final Runnable refresh = new Runnable() {
         @Override public void run() { render(); handler.postDelayed(this, 500); }
@@ -68,12 +72,16 @@ public final class MainActivity extends Activity {
         if (state != null) {
             overlayPending = state.getBoolean("overlayPending");
             startPending = state.getBoolean("startPending");
+            backgroundIntroPending = state.getBoolean("backgroundIntroPending");
+            requestBackgroundOnStart = state.getBoolean("requestBackgroundOnStart");
+            backgroundGuideOpen = state.getBoolean("backgroundGuideOpen");
         }
         getWindow().setStatusBarColor(Ui.BG);
         getWindow().setNavigationBarColor(Ui.BG);
         getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                 | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
         buildUi();
+        if (backgroundGuideOpen) showBackgroundGuide(backgroundIntroPending);
     }
 
     private void buildUi() {
@@ -114,9 +122,6 @@ public final class MainActivity extends Activity {
         subtitle.setLetterSpacing(0.17f);
         brand.addView(subtitle);
         mast.addView(brand, new LinearLayout.LayoutParams(0, -2, 1));
-        TextView badge = Ui.text(this, "LIVE ENERGY", 9, Ui.GREEN, true);
-        badge.setLetterSpacing(0.07f);
-        mast.addView(badge);
         root.addView(mast);
         Ui.space(root, 24);
 
@@ -150,7 +155,6 @@ public final class MainActivity extends Activity {
 
         LinearLayout section = row();
         section.addView(Ui.text(this, "电池状态", 15, Ui.TEXT, true), new LinearLayout.LayoutParams(0, -2, 1));
-        section.addView(Ui.text(this, "电流 · 电压 · 温度", 10, Ui.MUTED, false));
         root.addView(section);
         Ui.space(root, 12);
         LinearLayout first = row();
@@ -301,13 +305,15 @@ public final class MainActivity extends Activity {
         styles.addView(resetScale, new LinearLayout.LayoutParams(0, Ui.dp(this, 42), 1));
         controls.addView(styles);
         Ui.space(controls, 16);
-        permission = Ui.text(this, "", 10, Ui.MUTED, false);
-        permission.setLineSpacing(Ui.dp(this, 3), 1);
-        controls.addView(permission);
-        Ui.space(controls, 10);
+        LinearLayout settingsRow = row();
         Button notificationSettings = button("管理通知权限", false);
         notificationSettings.setOnClickListener(v -> openNotificationSettings());
-        controls.addView(notificationSettings, new LinearLayout.LayoutParams(-1, Ui.dp(this, 42)));
+        settingsRow.addView(notificationSettings, new LinearLayout.LayoutParams(0, Ui.dp(this, 42), 1));
+        gap(settingsRow, 9);
+        Button screenOffSettings = button("息屏记录设置", false);
+        screenOffSettings.setOnClickListener(v -> explainScreenOffRecording());
+        settingsRow.addView(screenOffSettings, new LinearLayout.LayoutParams(0, Ui.dp(this, 42), 1));
+        controls.addView(settingsRow);
         root.addView(controls);
         Ui.space(root, 14);
 
@@ -325,19 +331,23 @@ public final class MainActivity extends Activity {
         root.addView(explain, new LinearLayout.LayoutParams(-1, Ui.dp(this, 42)));
         LinearLayout help = Ui.column(this);
         help.setPadding(Ui.dp(this, 3), Ui.dp(this, 14), Ui.dp(this, 3), 0);
+        permission = Ui.text(this, "", 12, Ui.MUTED, false);
+        permission.setLineSpacing(Ui.dp(this, 3), 1);
+        help.addView(permission);
+        Ui.space(help, 10);
+        backgroundStatus = Ui.text(this, "", 12, Ui.MUTED, false);
+        backgroundStatus.setLineSpacing(Ui.dp(this, 3), 1);
+        help.addView(backgroundStatus);
+        Ui.space(help, 12);
         diagnostics = Ui.text(this, "", 10, Ui.MUTED, false);
         help.addView(diagnostics);
         Ui.space(help, 12);
-        TextView note = Ui.text(this, "电池净功率 ≈ 电压 × 电流。正电流表示充入，负电流表示放出。充电时不能当作整机耗电或充电头功率。\n\n息屏深度休眠期间不强制唤醒手机，缺失时段不计入能耗。最近 6 小时记录保留在本次监测的内存中，进程结束后不保留；需要保存时请导出 CSV。", 11, Ui.MUTED, false);
+        TextView note = Ui.text(this, "电池净功率 ≈ 电压 × 电流。正电流表示充入，负电流表示放出。充电时不能当作整机耗电或充电头功率。\n\n监测期间会保持 CPU 唤醒以支持息屏采样，屏幕可正常关闭；这会增加耗电并影响原本的待机状态。深度休眠和厂商后台限制仍可能中断采样，请检查息屏记录设置；缺失时段不计入能耗。最近 6 小时记录保留在本次监测的内存中，进程结束后不保留；需要保存时请导出 CSV。", 11, Ui.MUTED, false);
         note.setLineSpacing(Ui.dp(this, 4), 1);
         help.addView(note);
         help.setVisibility(View.GONE);
         explain.setOnClickListener(v -> help.setVisibility(help.getVisibility() == View.GONE ? View.VISIBLE : View.GONE));
         root.addView(help);
-        Ui.space(root, 23);
-        TextView footer = Ui.text(this, "电池净功率估算  ·  无需 Root  ·  本地处理", 10, Ui.MUTED, false);
-        footer.setGravity(Gravity.CENTER);
-        root.addView(footer);
     }
 
     private void handleOverlayToggle(boolean checked) {
@@ -443,6 +453,45 @@ public final class MainActivity extends Activity {
     }
 
     private void requestStart() {
+        if (MonitorStore.running || startPending || backgroundIntroPending) return;
+        if (!Prefs.get(this).getBoolean("background_guide_seen_v1", false)) showBackgroundGuide(true);
+        else requestNotificationsAndStart();
+    }
+
+    private void showBackgroundGuide(boolean firstStart) {
+        if (backgroundGuide != null) return;
+        backgroundIntroPending = firstStart;
+        backgroundGuideOpen = true;
+        backgroundGuide = new BackgroundGuideDialog(this, firstStart,
+                () -> finishBackgroundIntro(true), () -> finishBackgroundIntro(false), () -> {
+                    backgroundIntroPending = false;
+                    backgroundGuideOpen = false;
+                    backgroundGuide = null;
+                });
+        backgroundGuide.show();
+    }
+
+    private void finishBackgroundIntro(boolean requestAccess) {
+        backgroundIntroPending = false;
+        backgroundGuideOpen = false;
+        Prefs.get(this).edit().putBoolean("background_intro_seen", true)
+                .putBoolean("background_guide_seen_v1", true).apply();
+        requestBackgroundOnStart = requestAccess;
+        requestNotificationsAndStart();
+    }
+
+    private void updateBackgroundStatus() {
+        Boolean exempt = BackgroundSettings.exemption(this);
+        String value = getString(exempt == null ? R.string.bg_status_unknown : exempt ? R.string.bg_status_yes : R.string.bg_status_no);
+        backgroundStatus.setText(getString(R.string.bg_diagnostics, value));
+        if (backgroundGuide != null) backgroundGuide.refresh();
+    }
+
+    private void explainScreenOffRecording() { showBackgroundGuide(false); }
+
+    private void requestBackgroundAccess() { BackgroundSettings.requestExemption(this); }
+
+    private void requestNotificationsAndStart() {
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             startPending = true;
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQUEST_NOTIFICATIONS);
@@ -451,7 +500,12 @@ public final class MainActivity extends Activity {
 
     private void startMonitoring() {
         startPending = false;
-        try { startForegroundService(new Intent(this, PowerMonitorService.class).setAction(PowerMonitorService.ACTION_START)); }
+        boolean requestAccess = requestBackgroundOnStart;
+        requestBackgroundOnStart = false;
+        try {
+            startForegroundService(new Intent(this, PowerMonitorService.class).setAction(PowerMonitorService.ACTION_START));
+            if (requestAccess) requestBackgroundAccess();
+        }
         catch (RuntimeException blocked) { toast("无法启动监测，请保持应用在前台后重试。"); }
     }
 
@@ -467,6 +521,7 @@ public final class MainActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        updateBackgroundStatus();
         if (overlayPending) {
             overlayPending = false;
             if (Settings.canDrawOverlays(this)) {
@@ -486,7 +541,15 @@ public final class MainActivity extends Activity {
     @Override protected void onSaveInstanceState(Bundle state) {
         state.putBoolean("overlayPending", overlayPending);
         state.putBoolean("startPending", startPending);
+        state.putBoolean("backgroundIntroPending", backgroundIntroPending);
+        state.putBoolean("requestBackgroundOnStart", requestBackgroundOnStart);
+        state.putBoolean("backgroundGuideOpen", backgroundGuideOpen);
         super.onSaveInstanceState(state);
+    }
+
+    @Override protected void onDestroy() {
+        if (backgroundGuide != null) backgroundGuide.dismiss();
+        super.onDestroy();
     }
 
     private void render() {
@@ -507,7 +570,7 @@ public final class MainActivity extends Activity {
             power.setText(value);
             power.setTextSize(value.length() > 6 ? 50 : value.length() > 5 ? 58 : 68);
             power.setTextColor(s.signedWatts > 0 ? Ui.CYAN : Ui.TEXT);
-            String message = !s.issue.isEmpty() ? s.issue : s.direction() + "  ·  " + s.source;
+            String message = !s.issue.isEmpty() ? s.issue : s.direction();
             direction.setText(stale ? "采样延迟 · 显示上次读数" : running ? message : "监测已停止 · 保留最后读数");
             direction.setTextColor(s.valid() ? 0xFFA9BDDC : Ui.ORANGE);
             current.setText(Ui.number(s.currentMa, 0) + " mA");
@@ -516,6 +579,7 @@ public final class MainActivity extends Activity {
             temperature.setText(Ui.number(s.temperatureC, 1) + " °C");
             String raw = s.rawCurrent == Integer.MIN_VALUE ? "未提供" : Integer.toString(s.rawCurrent);
             diagnostics.setText("数据来源：Android BatteryManager / ACTION_BATTERY_CHANGED\n原始电流：" + raw + " · 采样源：" + s.source
+                    + "\n有效采样 " + Ui.number(MonitorStore.stats.observedSeconds, 0) + " 秒"
                     + "\n" + (MonitorStore.error.isEmpty() ? "传感器更新速度由手机硬件决定。" : MonitorStore.error));
         } else {
             headline.setText("电池侧实时功率");
@@ -526,7 +590,7 @@ public final class MainActivity extends Activity {
         }
         SessionStats stats = MonitorStore.stats;
         energy.setText((s == null ? "—" : Ui.number(stats.dischargeWh, 3)) + " Wh");
-        coverage.setText("有效采样 " + Ui.number(stats.observedSeconds, 0) + " 秒  ·  净充入 " + Ui.number(stats.chargeWh, 3) + " Wh");
+        coverage.setText("累计充入 " + (s == null ? "—" : Ui.number(stats.chargeWh, 3)) + " Wh");
         interval.setText(Prefs.interval(this) / 1000 + " 秒刷新");
         compact.setText(Prefs.get(this).getBoolean("compact", false) ? "精简 · 切换标准" : "标准 · 切换精简");
         int scale = Prefs.overlayScale(this);
@@ -539,7 +603,7 @@ public final class MainActivity extends Activity {
         NotificationManager nm = getSystemService(NotificationManager.class);
         NotificationChannel channel = nm.getNotificationChannel("live_power");
         boolean canNotify = nm.areNotificationsEnabled() && (channel == null || channel.getImportance() != NotificationManager.IMPORTANCE_NONE);
-        permission.setText("通知栏：" + (canNotify ? "已允许" : "未开启，可在下方授权")
+        permission.setText("通知栏：" + (canNotify ? "已允许" : "未开启，可在“管理通知权限”中开启")
                 + "  /  悬浮窗：" + (Settings.canDrawOverlays(this) ? "已授权" : "未授权"));
         long range = Prefs.chartRange(this);
         if (renderedRange != range) {

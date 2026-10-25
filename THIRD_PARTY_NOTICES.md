@@ -1,6 +1,6 @@
 # 第三方组件与许可声明
 
-本清单对应 WattScope Android 1.1.3。项目自身的代码、测试、文档和原创资源采用根目录的 [MIT License](LICENSE)；第三方文件保留各自许可，MIT 不替代这些许可。
+本清单对应 WattScope Android 1.1.4。项目自身的代码、测试、文档和原创资源采用根目录的 [MIT License](LICENSE)；第三方文件保留各自许可，MIT 不替代这些许可。
 
 ## 随源码分发的组件
 
@@ -29,3 +29,8 @@ Gradle 上游许可汇总包含其构建工具依赖的 Apache、MIT、BSD、EPL
 ## 分发与贡献
 
 分发项目源码时请保留根目录 `LICENSE`、本文件、`third_party/gradle-LICENSE.txt` 以及第三方文件原有许可头。新增第三方代码、字体、图标或其他资源时，应同时补充来源、版本、许可和必要的版权声明；修改第三方文件时标明修改内容。
+
+
+## 仅测试依赖（1.1.4）
+
+Gradle 测试使用 JUnit 4.13.2（Eclipse Public License 1.0）及 Robolectric 4.14.1（MIT），其许可信息以对应 Maven POM 和上游项目为准。测试依赖及其传递依赖通过 Gradle 获取，不作为运行时依赖打入 APK，也不把其二进制打包进本源码归档。AndroidX 仅由 Robolectric 测试依赖引入。

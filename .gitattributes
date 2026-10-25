@@ -6,3 +6,8 @@
 gradlew text eol=lf
 *.bat text eol=crlf
 *.jar binary
+
+*.apk binary
+*.zip binary
+*.properties text eol=lf
+*.yml text eol=lf

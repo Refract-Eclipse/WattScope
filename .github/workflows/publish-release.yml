@@ -1,0 +1,100 @@
+name: Publish verified release bundle
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'release/**'
+      - 'version.properties'
+      - '.github/workflows/publish-release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-wattscope-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out the exact source commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Read release metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+          metadata = dict(line.split('=', 1) for line in Path('version.properties').read_text().splitlines() if '=' in line and not line.startswith('#'))
+          version = metadata['versionName']
+          code = metadata['versionCode']
+          app_id = metadata['applicationId']
+          assert re.fullmatch(r'\d+\.\d+\.\d+', version), 'Release version must be numeric x.y.z'
+          assert code.isdigit()
+          assert re.fullmatch(r'[A-Za-z][A-Za-z0-9_.]+', app_id)
+          with open(os.environ['GITHUB_ENV'], 'a') as env:
+              env.write(f'VERSION={version}\nVERSION_CODE={code}\nAPPLICATION_ID={app_id}\nRELEASE_DIR=release/v{version}\n')
+          PY
+
+      - name: Verify hashes, APK signature, and package metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd "$RELEASE_DIR" && sha256sum --strict --check SHA256SUMS.txt)
+          build_tools=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)
+          test -n "$build_tools"
+          "$build_tools/apksigner" verify --verbose --print-certs "$RELEASE_DIR/WattScope-$VERSION.apk" > "$RUNNER_TEMP/signature.txt"
+          grep -F 'certificate SHA-256 digest: caa0a2f5015fe14f36e4bdb766fd9bf0ac2cd49d7cf9a17c359cebbde8bb1fc1' "$RUNNER_TEMP/signature.txt"
+          "$build_tools/zipalign" -c -p 4 "$RELEASE_DIR/WattScope-$VERSION.apk"
+          "$build_tools/aapt2" dump badging "$RELEASE_DIR/WattScope-$VERSION.apk" > "$RUNNER_TEMP/badging.txt"
+          grep -F "package: name='$APPLICATION_ID' versionCode='$VERSION_CODE' versionName='$VERSION'" "$RUNNER_TEMP/badging.txt"
+          if grep -q '^application-debuggable' "$RUNNER_TEMP/badging.txt"; then
+            echo 'Release APK must not be debuggable' >&2
+            exit 1
+          fi
+          python3 - <<'PY'
+          import os, zipfile
+          from pathlib import PurePosixPath
+          path = f"{os.environ['RELEASE_DIR']}/WattScope-{os.environ['VERSION']}-source.zip"
+          with zipfile.ZipFile(path) as source:
+              assert source.testzip() is None
+              for name in source.namelist():
+                  parts = PurePosixPath(name).parts
+                  assert not any(p in {'.git', '.toolchain', '.gradle', 'build'} for p in parts), name
+                  assert not name.lower().endswith(('.jks', '.keystore', '.p12', '.pfx', '.pem')), name
+                  assert 'private-signing-backup' not in name.lower(), name
+              metadata = source.read('WattScope/version.properties').decode()
+              assert f"versionName={os.environ['VERSION']}\n" in metadata
+              assert f"versionCode={os.environ['VERSION_CODE']}\n" in metadata
+          PY
+
+      - name: Publish release with APK, source, and announcement
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="v$VERSION"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists; refusing to overwrite it." >&2
+            exit 1
+          fi
+          gh release create "$tag" \
+            "$RELEASE_DIR/WattScope-$VERSION.apk" \
+            "$RELEASE_DIR/WattScope-$VERSION-source.zip" \
+            "$RELEASE_DIR/SHA256SUMS.txt" \
+            "$RELEASE_DIR/LICENSE.txt" \
+            "$RELEASE_DIR/RELEASE_NOTES.md" \
+            --draft --target "$GITHUB_SHA" \
+            --title "WattScope $VERSION · 通用后台引导与息屏记录改进" \
+            --notes-file "$RELEASE_DIR/RELEASE_NOTES.md"
+          gh release edit "$tag" --draft=false --latest

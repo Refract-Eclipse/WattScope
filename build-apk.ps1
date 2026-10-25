@@ -6,9 +6,13 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $projectRoot = $PSScriptRoot
+$metadata = @{}
+Get-Content -LiteralPath (Join-Path $projectRoot 'version.properties') -Encoding UTF8 | ForEach-Object {
+    if ($_ -match '^([^#=]+)=(.*)$') { $metadata[$matches[1].Trim()] = $matches[2].Trim() }
+}
 if (-not $AndroidSdkRoot) { $AndroidSdkRoot = $env:ANDROID_SDK_ROOT }
-if (-not $PlatformJarPath -and $AndroidSdkRoot) { $PlatformJarPath = Join-Path $AndroidSdkRoot 'platforms\android-36\android.jar' }
-if (-not $BuildToolsPath -and $AndroidSdkRoot) { $BuildToolsPath = Join-Path $AndroidSdkRoot 'build-tools\36.0.0' }
+if (-not $PlatformJarPath -and $AndroidSdkRoot) { $PlatformJarPath = Join-Path $AndroidSdkRoot ('platforms\android-' + $metadata['compileSdk'] + '\android.jar') }
+if (-not $BuildToolsPath -and $AndroidSdkRoot) { $BuildToolsPath = Join-Path $AndroidSdkRoot ('build-tools\' + $metadata['buildToolsVersion']) }
 if (-not $JavaHomePath) { throw 'Set JAVA_HOME or pass -JavaHomePath (JDK 17+).' }
 $java = Join-Path $JavaHomePath 'bin\java.exe'
 $javac = Join-Path $JavaHomePath 'bin\javac.exe'
@@ -48,15 +52,16 @@ Write-Output 'Compiling Android resources...'
 $resources = Join-Path $work 'resources.zip'
 Run-Checked $aapt @('compile', '--dir', (Join-Path $projectRoot 'app\src\main\res'), '-o', $resources)
 [xml]$manifest = Get-Content -LiteralPath (Join-Path $projectRoot 'app\src\main\AndroidManifest.xml') -Raw -Encoding UTF8
-$manifest.DocumentElement.SetAttribute('package', 'dev.wattscope')
+$manifest.DocumentElement.SetAttribute('package', $metadata['applicationId'])
 $application = $manifest.manifest.application
+$application.SetAttribute('label', 'http://schemas.android.com/apk/res/android', $metadata['appLabel']) | Out-Null
 $application.SetAttribute('debuggable', 'http://schemas.android.com/apk/res/android', 'true') | Out-Null
 $manifestPath = Join-Path $work 'AndroidManifest.xml'
 $manifest.Save($manifestPath)
 $unsigned = Join-Path $work 'unsigned.apk'
 Run-Checked $aapt @('link', '-o', $unsigned, '-I', $PlatformJarPath, '--manifest', $manifestPath,
-    '--java', $generated, '--min-sdk-version', '26', '--target-sdk-version', '36',
-    '--version-code', '5', '--version-name', '1.1.3', $resources)
+    '--custom-package', $metadata['namespace'], '--java', $generated, '--min-sdk-version', $metadata['minSdk'], '--target-sdk-version', $metadata['targetSdk'],
+    '--version-code', $metadata['versionCode'], '--version-name', $metadata['versionName'], $resources)
 
 Write-Output 'Compiling native Android Java sources...'
 $javaSources = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'app\src\main\java'), $generated -Recurse -Filter '*.java' | ForEach-Object { $_.FullName })
@@ -67,7 +72,7 @@ Run-Checked $javac @('-encoding', 'UTF-8', '-d', $testClasses, (Join-Path $proje
 Run-Checked $java @('-cp', $testClasses, 'CompileDriver', $bootClasspath, $classes, $sourcesFile)
 $classJar = Join-Path $work 'classes.jar'
 Run-Checked $jar @('--create', '--file', $classJar, '-C', $classes, '.')
-Run-Checked $java @('-cp', $d8, 'com.android.tools.r8.D8', '--min-api', '26', '--lib', $PlatformJarPath, '--output', $dex, $classJar)
+Run-Checked $java @('-cp', $d8, 'com.android.tools.r8.D8', '--min-api', $metadata['minSdk'], '--lib', $PlatformJarPath, '--output', $dex, $classJar)
 
 Write-Output 'Assembling and signing a development APK...'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -81,13 +86,13 @@ $aligned = Join-Path $work 'aligned.apk'
 Run-Checked $zipalign @('-f', '-p', '4', $unsigned, $aligned)
 $keyDirectory = Join-Path $projectRoot '.toolchain'
 New-Item -ItemType Directory -Path $keyDirectory -Force | Out-Null
-$keystore = Join-Path $keyDirectory 'wattscope-debug.jks'
+$keystore = Join-Path $keyDirectory 'guidetrial-debug.keystore'
 if (-not (Test-Path -LiteralPath $keystore)) {
     Run-Checked $keytool @('-genkeypair', '-keystore', $keystore, '-storepass', 'android', '-keypass', 'android',
         '-alias', 'androiddebugkey', '-keyalg', 'RSA', '-keysize', '2048', '-validity', '10000',
         '-dname', 'CN=WattScope Development,O=Local Development,C=CN')
 }
-$apk = Join-Path $output 'WattScope-1.1.3-debug.apk'
+$apk = Join-Path $output ('WattScope-' + $metadata['versionName'] + '-debug.apk')
 Run-Checked $java @('-jar', $signer, 'sign', '--ks', $keystore, '--ks-key-alias', 'androiddebugkey',
     '--ks-pass', 'pass:android', '--key-pass', 'pass:android', '--out', $apk, $aligned)
 Run-Checked $java @('-jar', $signer, 'verify', '--verbose', '--print-certs', $apk)

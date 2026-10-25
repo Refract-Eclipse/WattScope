@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="bg_title">后台运行引导</string>
+    <string name="bg_first_title">开启息屏持续记录</string>
+    <string name="bg_purpose">为减少息屏后的采样中断，请检查下面两类设置。记录期间会保持 CPU 唤醒，屏幕仍可关闭；这会增加耗电并影响待机功耗。停止监测后立即释放。</string>
+    <string name="bg_system_title">1 · Android 电池优化</string>
+    <string name="bg_exempt">已豁免 · Android 系统确认\n厂商后台限制仍需单独核对。</string>
+    <string name="bg_not_exempt">未豁免 · 息屏采样可能暂停\n允许本应用忽略电池优化，可减少系统休眠限制。</string>
+    <string name="bg_unknown">无法读取系统状态 · 请到系统电池优化设置中核对。</string>
+    <string name="bg_request">申请忽略电池优化</string>
+    <string name="bg_system_list">打开电池优化列表</string>
+    <string name="bg_vendor_title">2 · 手机后台管理</string>
+    <string name="bg_manual_status">需手动核对 · 无统一系统检测接口</string>
+    <string name="bg_choose_brand">选择手机品牌</string>
+    <string name="bg_auto">自动识别（%1$s）</string>
+    <string name="bg_selected">当前说明：%1$s · 手动选择</string>
+    <string name="bg_detected">当前说明：%1$s · 按品牌推荐</string>
+    <string name="bg_app">设置时请选择：%1$s</string>
+    <string name="bg_version_note">菜单会因系统版本和地区而变化。找不到时，请打开手机设置搜索下方关键词；刷机或识别不准时可切换品牌。</string>
+    <string name="bg_app_settings">打开应用设置</string>
+    <string name="bg_phone_settings">打开手机设置</string>
+    <string name="bg_test_title">设置后检查一次</string>
+    <string name="bg_test">开始记录后锁屏几分钟，再查看曲线或导出 CSV，确认有连续采样。最近任务加锁可减少一键清理影响，但不能替代后台耗电设置。超强省电或系统清理仍可能中断记录；缺失时段不会补造数据。</string>
+    <string name="bg_first_action_note">开始前请核对以上两项设置。若选择申请授权，会打开系统授权窗口；需要时先申请通知权限。之后也可从“息屏记录设置”继续配置。</string>
+    <string name="bg_accept">申请并开始</string>
+    <string name="bg_start">开始记录</string>
+    <string name="bg_skip">暂不授权</string>
+    <string name="bg_cancel">取消</string>
+    <string name="bg_close">关闭</string>
+    <string name="bg_fallback_list">无法直接申请，请在电池优化列表中找到本应用，选择不优化或允许豁免。</string>
+    <string name="bg_fallback_app">请在应用设置中查找电池或后台运行选项。</string>
+    <string name="bg_fallback_phone">请在手机设置中搜索电池优化或后台运行，找到本应用。</string>
+    <string name="bg_fallback_unavailable">无法打开系统设置。请手动打开手机设置，按照本页说明核对。</string>
+    <string name="bg_diagnostics">Android 电池优化：%1$s\n厂商后台管理：需手动核对\n监测时保持 CPU 唤醒，会增加耗电。</string>
+    <string name="bg_status_yes">已豁免</string>
+    <string name="bg_status_no">未豁免</string>
+    <string name="bg_status_unknown">无法读取</string>
+    <string name="bg_vivo">vivo / iQOO</string>
+    <string name="bg_xiaomi">小米 / Redmi / POCO</string>
+    <string name="bg_oppo">OPPO</string>
+    <string name="bg_oneplus">一加 / OnePlus</string>
+    <string name="bg_realme">realme / 真我</string>
+    <string name="bg_huawei">华为</string>
+    <string name="bg_honor">荣耀 / HONOR</string>
+    <string name="bg_samsung">三星 / Samsung</string>
+    <string name="bg_pixel">Google / Pixel</string>
+    <string name="bg_other">其他 Android / 通用</string>
+    <string name="bg_vivo_steps">搜索“后台耗电管理”或“后台高耗电”，进入本应用，选择“允许后台高耗电”。\n\n常见位置：设置 → 电池 → 后台耗电管理。需要持续记录时，“智能控制”仍可能暂停息屏采样；Android 已豁免也需核对这里。</string>
+    <string name="bg_xiaomi_steps">搜索“应用智能省电”或“省电策略”，找到本应用，选择“无限制”（No restrictions）。\n\n常见入口：应用信息 → 省电策略，或设置 → 电池 → 应用。MIUI 与 HyperOS 的菜单可能不同。</string>
+    <string name="bg_oppo_steps">搜索“应用耗电管理”或“应用电池管理”，找到本应用，开启“允许后台活动”。\n\n也可从应用信息 → 耗电管理/电池使用进入。ColorOS 的菜单名称因版本而异。</string>
+    <string name="bg_oneplus_steps">搜索“应用耗电管理”或 App battery management，找到本应用，开启“允许后台活动”（Allow background activity）。\n\n较早 OxygenOS 可在 Battery optimization 中为本应用选择 Don’t optimize。ColorOS / OxygenOS 的入口可能不同。</string>
+    <string name="bg_realme_steps">搜索“应用耗电管理”或 App battery management，找到本应用，开启“允许后台活动”（Allow background activity）。\n\n常见位置：设置 → 电池 → 更多设置/省电设置 → 应用耗电管理，也可从应用信息 → 耗电管理进入。</string>
+    <string name="bg_huawei_steps">搜索“应用启动管理”，找到本应用，关闭“自动管理”，并勾选“允许后台活动”。\n\n还可搜索“电池优化”，为本应用选择不允许优化。这里的“不允许”指不允许系统优化本应用。仅适用于能够安装 Android APK 的系统。</string>
+    <string name="bg_honor_steps">搜索“应用启动管理”，找到本应用，关闭“自动管理”，并勾选“允许后台活动”。\n\nMagicOS / Magic UI 的入口可能不同。仍中断时，检查电池优化及最近任务加锁；不允许优化表示不允许系统限制本应用。</string>
+    <string name="bg_samsung_steps">在本应用信息 → 电池中，若有“不受限制”（Unrestricted），为本应用选择该项。\n\n再搜索“后台使用限制”，将本应用从“休眠应用”和“深度休眠应用”移出；若可选，将其加入“从不休眠的应用”。已设为不受限制时，部分版本不会再出现在可添加列表中。</string>
+    <string name="bg_pixel_steps">进入本应用信息 → 应用电池用量，开启“允许后台使用”（Allow background usage）。\n\n若还有“不受限制”（Unrestricted）选项，可为本应用选择它。菜单随 Android 版本变化；这不代表已解除所有省电模式限制。</string>
+    <string name="bg_other_steps">进入本应用信息，查找“电池”“耗电管理”或“后台运行”，选择“允许后台活动”“不受限制”或含义相同的选项。\n\n找不到时，打开手机设置搜索“后台运行”“电池优化”“应用省电”。若系统没有额外开关，完成 Android 电池优化设置后进行一次息屏测试。</string>
+    <item name="guide_system_status" type="id" />
+    <item name="guide_vendor_status" type="id" />
+    <item name="guide_vendor_steps" type="id" />
+    <item name="guide_brand_label" type="id" />
+    <item name="guide_brand_select" type="id" />
+    <item name="guide_app_settings" type="id" />
+    <item name="guide_phone_settings" type="id" />
+    <item name="guide_request" type="id" />
+    <item name="guide_scroll" type="id" />
+</resources>

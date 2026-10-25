@@ -1,6 +1,6 @@
 # 贡献指南
 
-欢迎通过 [Issues](https://github.com/Refract-PKUHSC/WattScope-Android/issues) 反馈问题，或通过 Pull Request 提交改进。
+欢迎通过 [Issues](https://github.com/Refract-Eclipse/WattScope/issues) 反馈问题，或通过 Pull Request 提交改进。
 
 ## 问题反馈
 
@@ -8,11 +8,11 @@
 
 ## 开发环境
 
-使用 JDK 17、Android SDK Platform 36、Gradle Wrapper 8.13。构建步骤见 [README](README.md#源码编译)。应用为原生 Java，实现位于 `app/src/main/java/dev/wattscope/`，无外部运行时库。
+使用 JDK 17、Android SDK Platform 36、Gradle Wrapper 8.13。构建步骤见 [README](README.md#构建与验证)。应用为原生 Java，实现位于 `app/src/main/java/dev/wattscope/`，无外部运行时库。
 
 ## 运行核心检查
 
-`tests/` 中三个检查程序使用 Java `main` 入口，不依赖 JUnit 或 Android 运行环境；普通 `gradlew test` 不会自动执行这些独立程序。
+`tests/` 中三个检查程序使用 Java `main` 入口，不依赖 JUnit 或 Android 运行环境；当前版本通过 JUnit 包装执行它们；可运行 `gradlew testDebugUnitTest`，同时运行 Robolectric 授权与服务检查。JUnit/Robolectric 仅用于测试，不进入 APK。
 
 在仓库根目录打开 PowerShell，确认 JDK 17 的 `javac`、`java` 在 PATH 中：
 
@@ -64,6 +64,6 @@ macOS / Linux：
 
 ## 提交与许可
 
-保持每个 PR 聚焦一个问题，说明原因、行为变化和验证结果。不要提交签名密钥、令牌、本机 SDK 路径、缓存、生成的 APK 或包含个人信息的采样数据。
+保持每个 PR 聚焦一个问题，说明原因、行为变化和验证结果。不要提交签名密钥、令牌、本机 SDK 路径、缓存或包含个人信息的采样数据。普通贡献不提交生成的 APK；维护者发布时才将已验证的安装包放入 `release/`。
 
 提交贡献即表示你有权提供该内容，并同意项目原创贡献按 [MIT License](LICENSE) 发布。新增第三方内容须在 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) 中记录来源和适用许可，保留必要声明；本项目不要求签署额外 CLA。

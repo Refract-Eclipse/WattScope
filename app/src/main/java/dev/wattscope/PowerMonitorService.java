@@ -13,6 +13,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.PowerManager;
 import android.os.SystemClock;
 
 public final class PowerMonitorService extends Service implements SharedPreferences.OnSharedPreferenceChangeListener {
@@ -26,10 +27,20 @@ public final class PowerMonitorService extends Service implements SharedPreferen
     private NotificationManager notifications;
     private OverlayController overlay;
     private boolean foreground;
+    private static final long WAKE_LOCK_TIMEOUT_MS = 120000;
+    private static final long WAKE_LOCK_RENEW_MS = 60000;
+    private PowerManager.WakeLock samplingWakeLock;
+    private long nextWakeLockRenewalMs;
 
     private final Runnable tick = new Runnable() {
         @Override public void run() {
             if (!MonitorStore.running) return;
+            try { keepCpuAwake(); }
+            catch (RuntimeException denied) {
+                MonitorStore.error = "无法保持息屏采样，监测已停止，请重新打开应用后重试。";
+                stopMonitoring();
+                return;
+            }
             int interval = Prefs.interval(PowerMonitorService.this);
             try {
                 PowerSample sample = reader.read();
@@ -71,13 +82,13 @@ public final class PowerMonitorService extends Service implements SharedPreferen
                 if (Build.VERSION.SDK_INT >= 34) startForeground(NOTIFICATION, initial, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
                 else startForeground(NOTIFICATION, initial);
                 foreground = true;
+                keepCpuAwake();
                 MonitorStore.running = true;
                 handler.removeCallbacks(tick);
                 handler.post(tick);
             } catch (RuntimeException denied) {
                 MonitorStore.error = "无法启动后台监测，请重新打开应用后重试。";
-                MonitorStore.running = false;
-                stopSelf();
+                stopMonitoring();
             }
         }
         return START_NOT_STICKY;
@@ -94,6 +105,7 @@ public final class PowerMonitorService extends Service implements SharedPreferen
                 + (sample.percent < 0 ? "—" : sample.percent) + "%  ·  " + Ui.number(sample.temperatureC, 1) + " °C";
         String explanation = sample != null && !sample.issue.isEmpty() ? sample.issue
                 : "电池侧净功率估算；充电时不代表整机耗电或充电器输入功率。";
+        explanation += "\n息屏持续采样会增加耗电；不需要记录时请停止监测。";
         Notification.Builder builder = new Notification.Builder(this, CHANNEL)
                 .setSmallIcon(R.drawable.ic_power).setContentTitle(title).setContentText(line)
                 .setStyle(new Notification.BigTextStyle().bigText(line + "\n" + explanation))
@@ -110,9 +122,28 @@ public final class PowerMonitorService extends Service implements SharedPreferen
         return builder.build();
     }
 
+    private void keepCpuAwake() {
+        if (samplingWakeLock == null) {
+            PowerManager manager = getSystemService(PowerManager.class);
+            samplingWakeLock = manager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, getPackageName() + ":recording");
+            samplingWakeLock.setReferenceCounted(false);
+        }
+        long now = SystemClock.elapsedRealtime();
+        if (!samplingWakeLock.isHeld() || now >= nextWakeLockRenewalMs) {
+            samplingWakeLock.acquire(WAKE_LOCK_TIMEOUT_MS);
+            nextWakeLockRenewalMs = now + WAKE_LOCK_RENEW_MS;
+        }
+    }
+
+    private void releaseCpu() {
+        if (samplingWakeLock != null && samplingWakeLock.isHeld()) samplingWakeLock.release();
+        nextWakeLockRenewalMs = 0;
+    }
+
     private void stopMonitoring() {
         MonitorStore.running = false;
         handler.removeCallbacks(tick);
+        releaseCpu();
         overlay.remove();
         if (foreground) stopForeground(STOP_FOREGROUND_REMOVE);
         foreground = false;
@@ -142,6 +173,7 @@ public final class PowerMonitorService extends Service implements SharedPreferen
     @Override public void onDestroy() {
         MonitorStore.running = false;
         handler.removeCallbacksAndMessages(null);
+        releaseCpu();
         if (overlay != null) overlay.remove();
         Prefs.get(this).unregisterOnSharedPreferenceChangeListener(this);
         if (foreground) stopForeground(STOP_FOREGROUND_REMOVE);
